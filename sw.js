@@ -1,5 +1,5 @@
 // Service worker: rede primeiro (pega sempre a versão nova), cache como reserva offline.
-const CACHE = 'vida-v1';
+const CACHE = 'vida-v2';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {

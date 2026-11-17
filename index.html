@@ -262,6 +262,10 @@ input.field{min-width:0;-webkit-appearance:none;appearance:none}
 .hold .hi{font-size:40px;color:var(--teal);transition:.3s}
 .hold.go .hi{transform:scale(.9)}.hold.done .hi{color:var(--green);transform:scale(1.1)}
 .hold .ht{position:absolute;bottom:30px;font-size:13px;font-weight:600;color:var(--l2)}
+.spin{display:inline-block;width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;animation:sp .8s linear infinite;vertical-align:-3px}
+.spin.big{width:34px;height:34px;border-width:3px;border-color:var(--fill);border-top-color:var(--teal)}
+@keyframes sp{to{transform:rotate(360deg)}}
+.btn:disabled{opacity:.75}
 .empty{color:var(--l3);font-size:15px;padding:18px 16px;text-align:center}
 </style>
 </head>
@@ -1328,17 +1332,33 @@ function delBill(id){if(!bd.del){bd.del=true;drawBill(id);return}S.bills=S.bills
 
 /* ---------- sheet ---------- */
 function openSheet(html){$('#sheet').innerHTML='<div class="grab"></div>'+html;$('#sheet').classList.add('show');$('#ov').classList.add('show')}
-function closeSheet(){$('#sheet').classList.remove('show');$('#ov').classList.remove('show')}
+function closeSheet(){brk=null;$('#sheet').classList.remove('show');$('#ov').classList.remove('show')}
 $('#ov').onclick=closeSheet;
 
+let brk=null;
 function breakTask(id,title){
   const t=id?S.tasks.find(x=>x.id===id):{title:title||''};
+  brk={id,title:t.title,pid:(!id&&openPid)?openPid:null,steps:null,keep:true};
   openSheet(`<h2>Quebrar em passos</h2><div class="l2" style="margin-top:2px">${esc(t.title)}</div>
-  <div style="text-align:center;padding:26px 10px 8px">${sq('wand','var(--blue)','width:52px;height:52px;border-radius:15px;font-size:26px;margin:0 auto')}
-    <b style="display:block;margin:14px 0 6px;font-size:17px">Chega com a IA, na próxima etapa</b>
-    <div class="l2 sm">Ela vai transformar a tarefa em 3 a 5 passos bem pequenos, pra ficar fácil começar.</div></div>
-  <button class="btn gr" onclick="closeSheet()">Fechar</button>`);
+  <div style="text-align:center;padding:30px 10px 14px"><span class="spin big"></span><div class="l2 sm" style="margin-top:14px">Pensando nos menores passos possíveis…</div></div>`);
+  aiCall('break',t.title).then(r=>{if(!brk)return;brk.steps=(r.passos||[]).map(s=>({t:cap(String(s).trim()),on:true})).filter(s=>s.t);if(!brk.steps.length)throw 0;drawBreak()})
+    .catch(()=>{if(!brk)return;openSheet(`<h2>Quebrar em passos</h2><div class="empty">Não consegui falar com a IA agora. Tente de novo em instantes.</div><button class="btn gr" onclick="closeSheet()">Fechar</button>`)});
 }
+function drawBreak(){
+  openSheet(`<h2>Quebrar em passos</h2><div class="l2" style="margin-top:2px">${esc(brk.title)}</div>
+  <div class="list" style="background:var(--fill);margin-top:16px">${brk.steps.map((s,i)=>`<div class="row"><button class="chk ${s.on?'on':''}" onclick="brk.steps[${i}].on=!brk.steps[${i}].on;drawBreak()">${ic('check')}</button><div class="t"><b style="white-space:normal;font-weight:500">${esc(s.t)}</b>${i===0?'<span>Comece por este</span>':''}</div></div>`).join('')}</div>
+  <label class="flex sm l2" style="gap:8px;margin:12px 4px 0"><input type="checkbox" ${brk.keep?'':'checked'} onchange="brk.keep=!this.checked" style="width:18px;height:18px;accent-color:var(--blue)"> Substituir a tarefa original pelos passos</label>
+  <button class="btn" onclick="applyBreak()">Adicionar ${brk.steps.filter(s=>s.on).length} passos</button>
+  <button class="sm l2" style="width:100%;margin-top:12px" onclick="breakTask(${brk.id?`'${brk.id}'`:'null'},brk.title)">Gerar de novo</button>`)}
+function applyBreak(){
+  const steps=brk.steps.filter(s=>s.on).map(s=>s.t);if(!steps.length)return;
+  if(brk.pid){const p=S.projects.find(x=>x.id===brk.pid);const i=p.tasks.findIndex(x=>!x.done&&x.title===brk.title);
+    const add=steps.map(s=>({id:uid(),title:s,done:false}));
+    if(i>=0){p.tasks.splice(brk.keep?i+1:i,brk.keep?0:1,...add)}else p.tasks.push(...add)}
+  else{const t=S.tasks.find(x=>x.id===brk.id);const date=t?t.date:TODAY();const i=S.tasks.indexOf(t);
+    const add=steps.map(s=>({id:uid(),title:s,done:false,date}));
+    if(i>=0){S.tasks.splice(brk.keep?i+1:i,brk.keep?0:1,...add)}else S.tasks.push(...add)}
+  brk=null;save();closeSheet();render();toast('Passos adicionados')}
 function openSettings(){
   openSheet(`<h2>Ajustes</h2>
   <div class="sm l2" style="margin-top:4px">Por enquanto seus dados ficam guardados neste aparelho. Faça um backup de vez em quando.</div>
@@ -1356,12 +1376,12 @@ function importData(){const i=document.createElement('input');i.type='file';i.ac
 let pending=[];
 function openCapture(){
   pending=[];
-  openSheet(`<div class="between"><h2>Capturar</h2><span class="badge">IA em breve</span></div>
+  openSheet(`<div class="between"><h2>Capturar</h2><span class="badge" style="color:var(--teal);background:rgba(100,210,255,.12)">com IA</span></div>
   <textarea class="field" id="capIn" placeholder="Escreva do seu jeito. Ex: gastei 85 no mercado e consulta quinta 14h30"></textarea>
   <div class="chips">
     ${['ideia: ','anotar: ','recebi ','sou grato por ',...S.projects.filter(p=>p.status!=='feito').map(p=>p.name.toLowerCase()+': ')].map(t=>`<button class="pill fill" onclick="ex('${esc(t).replace(/'/g,"\\'")}')">${esc(t.trim())}</button>`).join('')}
   </div>
-  <button class="btn" onclick="organize()">Organizar</button>
+  <button class="btn" id="orgBtn" onclick="organize()">Organizar</button>
   <div id="prevs"></div>`);
   setTimeout(()=>$('#capIn')?.focus(),400);
 }
@@ -1414,12 +1434,46 @@ function classify(c){
     return{kind:'event',title:clean(c.replace(/\s*[-–,]?\s*\bimportante\b/ig,'')),date:w.date||TODAY(),time:w.time||'09:00',imp}}
   return{kind:'task',title:clean(c),date:w.date||TODAY()};
 }
-function organize(){
-  const v=$('#capIn').value.trim();if(!v)return;
+const AI_URL='https://vida-app.irobruno2.workers.dev';
+async function aiCall(task,text,extra={}){
+  const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),20000);
+  try{const r=await fetch(AI_URL,{method:'POST',headers:{'Content-Type':'application/json'},signal:ctl.signal,
+      body:JSON.stringify({task,text,today:TODAY(),weekday:new Date().toLocaleDateString('pt-BR',{weekday:'long'}),...extra})});
+    if(!r.ok)throw new Error('http '+r.status);return await r.json()}
+  finally{clearTimeout(to)}
+}
+const okDate=d=>/^\d{4}-\d{2}-\d{2}$/.test(d||'')&&!isNaN(parseD(d));
+const okTime=t=>/^\d{1,2}:\d{2}$/.test(t||'')?t.padStart(5,'0'):null;
+function fromAI(it){
+  const tx=cap(String(it.texto||'').trim());if(!tx)return null;
+  const findP=n=>S.projects.find(p=>p.name.toLowerCase()===String(n||'').toLowerCase().trim());
+  switch(it.kind){
+    case'gasto':{if(!(+it.valor>0))return null;const cat=CATS[it.categoria]&&it.categoria!=='Renda'?it.categoria:catOf(tx);return{kind:'out',amount:+it.valor,cur:'BRL',cat,desc:tx}}
+    case'entrada':return +it.valor>0?{kind:'in',amount:+it.valor,cur:'BRL',desc:tx}:null;
+    case'compromisso':return{kind:'event',title:tx,date:okDate(it.data)?it.data:TODAY(),time:okTime(it.hora)||'09:00',imp:!!it.importante};
+    case'tarefa':return{kind:'task',title:tx,date:okDate(it.data)&&it.data>=TODAY()?it.data:TODAY()};
+    case'ideia':{const pj=findP(it.projeto)||S.projects.find(x=>tx.toLowerCase().includes(x.name.toLowerCase()));return{kind:'idea',text:tx,tag:pj?pj.name:'Geral'}}
+    case'gratidao':return{kind:'grat',text:tx};
+    case'tarefa_projeto':{const pj=findP(it.projeto);return pj?{kind:'ptask',pid:pj.id,pname:pj.name,title:tx}:{kind:'task',title:tx,date:TODAY()}}
+  }return null;
+}
+let aiBusy=false;
+async function organize(){
+  const v=$('#capIn').value.trim();if(!v||aiBusy)return;
+  const btn=$('#orgBtn');aiBusy=true;if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Organizando…'}
+  try{const r=await aiCall('capture',v,{projects:S.projects.filter(p=>p.status!=='feito').map(p=>p.name)});
+    pending=(r.items||[]).map(fromAI).filter(Boolean);
+    if(!pending.length)throw new Error('vazio');
+    aiUsed=true;}
+  catch(e){organizeLocal(v);aiUsed=false;toast('IA indisponível, organizei do jeito simples',true)}
+  finally{aiBusy=false;if(btn){btn.disabled=false;btn.textContent='Organizar'}}
+  drawPending();
+}
+let aiUsed=false;
+function organizeLocal(v){
   const parts=v.split(/\s+e\s+(?=\S)|;|\n|\.\s+/).map(s=>s.trim()).filter(Boolean);
   const merged=[];parts.forEach(p=>{if(merged.length&&p.split(' ').length<2&&!/\d/.test(p))merged[merged.length-1]+=' e '+p;else merged.push(p)});
   pending=merged.map(classify).filter(Boolean);
-  drawPending();
 }
 function pv(p){
   const dl=d=>d===TODAY()?'hoje':d===addDays(1)?'amanhã':parseD(d).toLocaleDateString('pt-BR',{weekday:'short',day:'numeric'}).replace('.','');
@@ -1435,7 +1489,7 @@ function pv(p){
   }
 }
 function drawPending(){
-  $('#prevs').innerHTML=pending.length?`<span class="lbl">Entendi assim</span>`+pending.map((p,i)=>{const[e,a,b]=pv(p);
+  $('#prevs').innerHTML=pending.length?`<span class="lbl">${aiUsed?'A IA entendeu assim':'Entendi assim'}</span>`+pending.map((p,i)=>{const[e,a,b]=pv(p);
     return `<div class="prev" style="animation-delay:${i*60}ms">${e}<div class="t"><span>${a}</span><b>${b}</b></div><button class="x" onclick="pending.splice(${i},1);drawPending()">${ic('x')}</button></div>`}).join('')
     +`<button class="btn" onclick="commit()">Salvar${pending.length>1?' tudo':''}</button>`:'';
 }
