@@ -1,7 +1,8 @@
 {
-  "name": "vida-ia",
-  "main": "worker.js",
+  "name": "vida-app",
+  "main": "worker/worker.js",
   "compatibility_date": "2026-11-01",
   "ai": { "binding": "AI" },
+  "workers_dev": true,
   "observability": { "enabled": true }
 }
