@@ -1,5 +1,5 @@
 // Service worker: rede primeiro (pega sempre a versão nova), cache como reserva offline.
-const CACHE = 'vida-v2';
+const CACHE = 'vida-v3';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
@@ -12,7 +12,7 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
   e.respondWith(
-    fetch(req).then(res => {
+    fetch(req, { cache: 'no-cache' }).then(res => {
       if (res.ok && new URL(req.url).origin === location.origin) {
         const copy = res.clone();
         caches.open(CACHE).then(c => c.put(req, copy));
