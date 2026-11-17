@@ -59,6 +59,7 @@ Separe o texto em itens. Para cada item, escolha "kind":
 - "ideia": ideias, coisas pra lembrar, perguntas, pensamentos soltos.
 - "gratidao": algo pelo qual a pessoa é grata. "texto" sem o "sou grato por".
 - "tarefa_projeto": tarefa claramente ligada a um destes projetos: ${projs}. "projeto" = nome exato do projeto.
+Se a pessoa começar com "ideia:", "anotar:" ou "nota:", é "ideia".
 Regras: "texto" curto, claro, em português, começando com maiúscula, sem datas/horas/valores dentro. Resolva datas relativas ("amanhã", "sexta", "dia 20") a partir de hoje. "mil" = x1000. Não invente itens.`;
 }
 
